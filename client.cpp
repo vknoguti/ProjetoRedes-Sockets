@@ -121,6 +121,7 @@ void close_socket(){
     fflush(stdout);
 }
 
+
 void command_decide(char *input){
     if(exit_flag)
 			return;
