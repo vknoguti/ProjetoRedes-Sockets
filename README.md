@@ -6,7 +6,7 @@
 |Bruno Berndt Lima              | 12542550|
 |Thiago Shimada                 | 12691032|
 ## Softwares utilizados:
- - Linux: Ubuntu 22.04.2 LTS
+ - Linux: Ubuntu 20.04.3 LTS
  - g++ 11.3.0
    
 ## Instalação
