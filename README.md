@@ -21,7 +21,10 @@ make all
 ```
 make run_server
 ```
-- Abra quantos terminais quiser e execute 'make run_client'(sem as aspas) em cada terminal para os clientes 
+- Abra quantos terminais quiser e execute o seguinte comando em cada terminal para os clientes
+```
+make run_client
+```
 
 ## Comandos implementados
 - /connect - Estabelece a conexão com o servidor
