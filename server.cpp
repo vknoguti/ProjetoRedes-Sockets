@@ -53,6 +53,7 @@ Clients *return_client(int client_socket);
 Clients *return_client(string name);
 void command_decide(int client_socket, char message[MAX_LEN]);
 void handle_client(int client_socket);
+string generate_nickName(string name);
 
 
 int server_socket;
@@ -341,18 +342,18 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		msg += "  /ping                       - solicita uma mensagem /pong de resposta do servidor\n";
 		msg += "  /join nomeCanal             - se junta a um canal de nome enviado\n";
 		msg += "  /nickname apelidoDesejado:  - muda seu apelido inicial para outro\n";
-		msg += "  /bigMessage                 - envia uma mensagem de mais de 4096 caracteres ao servidor\n";
-		msg += "  /whoAmI                     - exibe ao cliente suas informações pessoais\n\n";
+		msg += "  /bigmessage                 - envia uma mensagem de mais de 4096 caracteres ao servidor\n";
+		msg += "  /whoami                     - exibe ao cliente suas informações pessoais\n\n";
 		msg += " -Usuários administradores:\n";
 		msg += "  /kick nomeUsuario           - finaliza a conexão de um usuário especificado\n";
 		msg += "  /mute nomeUsuario           - impede o usuário especificado no mesmo canal de enviar mensagens no canal\n";
 		msg += "  /unmute nomeUsuario         - retira o mute de um usuário do mesmo canal\n";
 		msg += "  /whois nomeUsuario          - retorna o endereço ip do usuario no mesmo canal\n";
-		msg += "  /whoAmI                     - exibe ao cliente suas informações pessoais\n\n";
+		msg += "  /whoami                     - exibe ao cliente suas informações pessoais\n\n";
 		send_message_client(client_socket, msg);
 		return;
 	}
-	if(strcmp(firstWord, "/whoAmI") == 0){
+	if(strcmp(firstWord, "/whoami") == 0){
 		Clients *cl = return_client(client_socket);
 		string msg = "\n==Informações Pessoais==\n";
 		msg += "Nome:         " + cl->name + "\n";
@@ -463,13 +464,18 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		}
 		return;
 	}
+	Clients *target_Client = return_client(string(secondWord));
+	if(target_Client == NULL){
+		string msg = "Usuario " + string(secondWord) + " nao encontrado\n";
+		send_message_client(client_socket, msg);
+		return;
+	}
 	if(strcmp(firstWord, "/mute") == 0){
 		if(actual_Client->adm == true){
-			Clients *target_Client = return_client(string(secondWord));
-			if(target_Client == NULL){
-				send_message_client(client_socket, string("Usuário nao existe\n"));
+			if(target_Client->muted){
+				send_message_client(client_socket, string("Usuário ja se encontra mutado\n"));
 				return;
-			} 
+			}
 			target_Client->muted = true;
 			string msg = "O usuario " + target_Client->name + " foi mutado\n";
 			send_message_client(client_socket, msg);
@@ -478,7 +484,10 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 	}
 	if(strcmp(firstWord, "/unmute") == 0){
 		if(actual_Client->adm == true){
-			Clients *target_Client = return_client(string(secondWord));
+			if(!target_Client->muted){
+				send_message_client(client_socket, string("Usuário ja se encontra desmutado\n"));
+				return;
+			}
 			target_Client->muted = false;
 			string msg = "O usuario " + target_Client->name + " foi desmutado\n";
 			send_message_client(client_socket, msg);
@@ -487,12 +496,6 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 	}
 	if(strcmp(firstWord, "/whois") == 0){
 		if(actual_Client->adm == true){
-			Clients *target_Client = return_client(string(secondWord));
-			if(target_Client == NULL){
-				string msg = "Usuario " + string(secondWord) + " nao encontrado\n";
-				send_message_client(client_socket, msg);
-				return;
-			}
 			string ip = "Server: Endereco IP de " + string(secondWord) + ": " + target_Client->ip+ "\n";
 			send_message_client(client_socket, ip);
 		}
