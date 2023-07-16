@@ -341,7 +341,7 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		msg += "  /ping                       - solicita uma mensagem /pong de resposta do servidor\n";
 		msg += "  /join nomeCanal             - se junta a um canal de nome enviado\n";
 		msg += "  /nickname apelidoDesejado:  - muda seu apelido inicial para outro\n";
-		msg += "  /unmute nomeUsuario         - retira o mute de um usuário do mesmo canal\n";
+		msg += "  /bigMessage                 - envia uma mensagem de mais de 4096 caracteres ao servidor\n";
 		msg += "  /whoAmI                     - exibe ao cliente suas informações pessoais\n\n";
 		msg += " -Usuários administradores:\n";
 		msg += "  /kick nomeUsuario           - finaliza a conexão de um usuário especificado\n";
