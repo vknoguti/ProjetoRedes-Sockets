@@ -2,19 +2,28 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <errno.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
 #include <signal.h>
+#include <mutex>
 
 #define MAX_LEN 4096
+
 
 using namespace std;
 
 bool exit_flag=false, connected = false;
 thread t_send, t_recv;
 int client_socket = -1;
+
+void catch_ctrl_c(int signal);
+void send_message(int client_socket);
+void recv_message(int client_socket);
+
+
 
 //Cria o socket e configura ele
 struct sockaddr_in create_socket(){
@@ -25,7 +34,6 @@ struct sockaddr_in create_socket(){
 	bzero(&client.sin_zero,0);
     return client;
 }
-
 //Seta o socket
 void set_socket(){
     if((client_socket=socket(AF_INET,SOCK_STREAM,0))==-1)
@@ -35,7 +43,6 @@ void set_socket(){
 		exit(-1);
     }
 }
-
 //Conecta ao socket
 int connect_socket(struct sockaddr_in client){
     if((connect(client_socket,(struct sockaddr *)&client,sizeof(struct sockaddr_in)))==-1)
@@ -43,6 +50,30 @@ int connect_socket(struct sockaddr_in client){
 		return -1;
 	}
     return 1;
+}
+
+struct sockaddr_in client = create_socket(); 
+int main()
+{   
+
+    set_socket();
+
+    //Create signal dealer of ctrl+c interruption
+    signal(SIGINT, catch_ctrl_c);
+    
+    //Threads de leitura da mensagem e de envio para o servidor
+	thread t1(send_message, client_socket);
+	thread t2(recv_message, client_socket);
+
+    t_send=move(t1);
+	t_recv=move(t2);
+
+	if(t_send.joinable())
+	    t_send.join();
+	if(t_recv.joinable())
+	    t_recv.join();
+
+	return 0;
 }
 
 // Handler para "Ctrl + C"
@@ -83,6 +114,7 @@ void close_socket(){
     cout << "Conexão com o servidor finalizada\n" << endl;
     fflush(stdout);
 }
+
 
 void command_decide(char *input){
     if(exit_flag)
@@ -151,7 +183,6 @@ void command_decide(char *input){
         }
     }
 }
-
 //Função que imprime as opções disponiveis de comandos ao cliente antes da conexao
 void print_options(){
     string msg = "\n->Comandos habilitados:\n";
@@ -202,29 +233,3 @@ void recv_message(int client_socket)
         fflush(stdout);
 	}	
 }
-
-
-struct sockaddr_in client = create_socket(); 
-
-int main()
-{   
-    set_socket();
-
-    //Cria um sinal de interrupção
-    signal(SIGINT, catch_ctrl_c);
-    
-    //Threads de leitura da mensagem e de envio para o servidor
-	thread t1(send_message, client_socket);
-	thread t2(recv_message, client_socket);
-
-    t_send=move(t1);
-	t_recv=move(t2);
-
-	if(t_send.joinable())
-	    t_send.join();
-	if(t_recv.joinable())
-	    t_recv.join();
-
-	return 0;
-}
-
