@@ -7,7 +7,7 @@
 |Thiago Shimada                 | 12691032|
 ## Softwares utilizados:
  - Linux: Ubuntu 20.04.3 LTS
- - g++ 11.3.0
+ - g++ 9.3.0
    
 ## Instalação
 - Compile os arquivos server.cpp e o client.cpp:
