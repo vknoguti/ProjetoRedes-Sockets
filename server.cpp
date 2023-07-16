@@ -466,6 +466,10 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 	if(strcmp(firstWord, "/mute") == 0){
 		if(actual_Client->adm == true){
 			Clients *target_Client = return_client(string(secondWord));
+			if(target_Client == NULL){
+				send_message_client(client_socket, string("Usuário nao existe\n"));
+				return;
+			} 
 			target_Client->muted = true;
 			string msg = "O usuario " + target_Client->name + " foi mutado\n";
 			send_message_client(client_socket, msg);
