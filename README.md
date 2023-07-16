@@ -1,4 +1,10 @@
 # ProjetoRedes-Sockets
+## Membros
+|             Nome              | NUSP    |
+|:-----------------------------:|:-------:|
+|Vinicius Kazuo Fujikawa Noguti | 11803121|
+|Bruno Berndt Lima              | 12542550|
+|Thiago Shimada                 | 12691032|
 ## Softwares utilizados:
  - Linux: Ubuntu 22.04.2 LTS
  - g++ 11.3.0
@@ -11,7 +17,10 @@ make all
 ```
 
 ## Execução
-- Abra um terminal e execute 'make run_server'(sem as aspas) para o servidor
+- Abra um terminal e execute o seguinte comando para iniciar o servidor
+```
+make run_server
+```
 - Abra quantos terminais quiser e execute 'make run_client'(sem as aspas) em cada terminal para os clientes 
 
 ## Comandos implementados
