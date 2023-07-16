@@ -449,25 +449,21 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		send_message_client(client_socket, msg);
 		return;
 	}
+
+	//Verifica se o usuario buscado existe
+	Clients *target_Client = return_client(string(secondWord));
+	if(target_Client == NULL){
+		string msg = "Usuario " + string(secondWord) + " nao encontrado\n";
+		send_message_client(client_socket, msg);
+		return;
+	}
 	if(strcmp(firstWord, "/kick") == 0){
-		Clients *target_Client = return_client(string(secondWord));
-		if(target_Client == NULL){
-			string msg = "Usuario " + string(secondWord) + " nao encontrado\n";
-			send_message_client(client_socket, msg);
-			return;
-		}
 		//Fecha a conexao do cliente
 		if(actual_Client->name_channel == target_Client->name_channel && actual_Client->adm == true){
 			closeClientConnection(target_Client->socket);
 			string msg = "O usuario " + target_Client->name + " foi kickado\n";
 			send_message_client(client_socket, msg);
 		}
-		return;
-	}
-	Clients *target_Client = return_client(string(secondWord));
-	if(target_Client == NULL){
-		string msg = "Usuario " + string(secondWord) + " nao encontrado\n";
-		send_message_client(client_socket, msg);
 		return;
 	}
 	if(strcmp(firstWord, "/mute") == 0){
