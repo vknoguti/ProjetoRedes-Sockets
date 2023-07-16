@@ -10,8 +10,10 @@
 #include <mutex>
 #include <map>
 #include <iostream>
+#include <signal.h>
+
+#include <iomanip>
 #define MAX_LEN 4096
-#define NUM_COLORS 6
 
 using namespace std;
 
@@ -31,20 +33,16 @@ struct Channel{
 	int socket_adm = -1;
 };
 
-
-
+//Lista geral de cliente
 list<Clients> clients;
-string def_col="\033[0m";
-string colors[]={"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m","\033[36m"};
+//Mutex de sincronização de saida e de acesso aos conteudos de usuarios e canais
 mutex cout_mtx,clients_mtx;
 
-
+//Cria um map que usa como chave o nome do canal, retornando o canal correspondente
 map<string, Channel> channel;
 
-
+void catch_ctrl_c(int signal);
 void printMessage(string message);
-void printMessage(string message);
-void printNumber(int n);
 void closeClientConnection(int client_socket);
 void setClientName(int client_socket, char name[]);
 void send_message_client(int client_socket, string message);
@@ -55,56 +53,61 @@ Clients *return_client(int client_socket);
 Clients *return_client(string name);
 void command_decide(int client_socket, char message[MAX_LEN]);
 void handle_client(int client_socket);
-void input_server(thread t);
-
 
 
 int server_socket;
 int main()
 {
+	//Cria um socket para o servidor
 	if((server_socket=socket(AF_INET,SOCK_STREAM,0))==-1)
 	{
 		perror("socket: ");
 		exit(-1);
 	}
 
+	//Dados do socket do servidor
 	struct sockaddr_in server;
 	server.sin_family=AF_INET;
-	server.sin_port=htons(10000);
+	server.sin_port=htons(9997);
 	server.sin_addr.s_addr=INADDR_ANY;
 	bzero(&server.sin_zero,0);
 
+	//Configura opções do socket, ajuda resolver problemas como “address already in use”.
 	int opt = 1;
 	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
+	//Vincula o numero da porta e o endereço ao socket
 	if((bind(server_socket,(struct sockaddr *)&server,sizeof(struct sockaddr_in)))==-1)
 	{
 		perror("bind error: ");
 		exit(-1);
 	}
 
+	//Coloca o socket em um estado passivo de espera pela conexao do usuario
 	if((listen(server_socket,8))==-1)
 	{
 		perror("listen error: ");
 		exit(-1);
 	}
-
+	
+	//Cria a estrutura de endeço socket para cada cliente
 	struct sockaddr_in client;
 	int client_socket;
 	unsigned int len=sizeof(sockaddr_in);
 
+	//Cria um sinal de chamada caso o servidor pressione CTRL+C
+	signal(SIGINT, catch_ctrl_c);
 
 	printMessage("\t||Server Started||\n\n");
-	//Criação da thread de leitura de input do server 
-	thread t_server(input_server, (move(t_server)));
 	while(1)
 	{
+		//Espera a conexao do usuario
 		if((client_socket=accept(server_socket,(struct sockaddr *)&client,&len))==-1)
 		{
-			perror("accept error: ");
+			cout <<  "Socket do servidor finalizado\n";
 			exit(-1);
 		}
-	
+		//Cria uma thread para lidar com envios e recebimentos de mensagens com o usuario
 		thread t(handle_client,client_socket);
 
 		//Armazena o endereço ip de cada cliente
@@ -114,75 +117,50 @@ int main()
 		} else {
 			perror("Erro ao obter o endereço IP remoto");
 		}
-
+		//Adiciona o usuaio a lista geral de ususarios
 		lock_guard<mutex> guard(clients_mtx);
 		clients.push_back({string("Anonymous"),client_socket,(move(t)), string(""), string(ip)});
 	}
 	
-
-
 	//Espera que suas threads sejam finalizadas
 	for (auto itr = clients.begin(); itr != clients.end(); itr++) {
 		if(itr->th.joinable())
 			itr->th.join();
     }
-	if(t_server.joinable())
-		t_server.join();
-
+	//Fecha o socket do servidor
 	close(server_socket);
 	return 0;
 }
 
-
-void end_connection()
-{
-	//Envia uma mensagem que o cliente foi desconectado e realiza a desconexao dele do servidor e dos canais
-	for (auto it = clients.begin(); it != clients.end(); it++) {
-		string msg = "Você foi desconectado do servidor\n";
-		send_message_client(it->socket, msg);
-		closeClientConnection(it->socket);
-    }
-	close(server_socket);	
+//signal: inteiro que armazena o signal à ação CTRL+C
+//Caso seja pressionado CTRL + C, o servidor desconecta todos usuarios e finaliza seu socket
+void catch_ctrl_c(int signal){
+	while(clients.size() != 0)
+		closeClientConnection(clients.front().socket);
+	close(server_socket);
+	close(signal);
 }
 
-
-void input_server(thread t){
-	char command[30];
-	while(1){
-		cin.getline(command, sizeof(command));
-		if(strcmp(command, "/close") == 0){
-			end_connection();
-			//t.detach();
-		}
-	}
-}
-
-
+//message: mensagem a ser exibida no terminal do servidor
+//Escreve uma mensagem no terminal do servidor
 void printMessage(string message){
 	lock_guard<mutex> guard(cout_mtx);
 	cout << message;
 	cout.flush();
 }
 
-
-void printNumber(int n){
-	lock_guard<mutex> guard(cout_mtx);
-	cout << n;
-	cout.flush();
-}
-
-
+//Fecha a conexao de um cliente dado seu socket
 void closeClientConnection(int client_socket){
 	//Retorna o cliente a ser removido
 	Clients *cl = return_client(client_socket);
 	if(cl == NULL) return;
-
+	
+	//Exibe para todos do canal que o cliente saiu do servidor
 	string msg = cl->name + " saiu do servidor\n";
 	broadcast_Message(client_socket, msg, true);
 	printMessage(msg);
 
 	string name_channel = cl->name_channel;
-	//lock_guard<mutex> guard(clients_mtx);
 	clients_mtx.lock();
 	if(name_channel != ""){
 		//Remoção do cliente retornado do canal, caso ele esteja em algum canal
@@ -192,16 +170,25 @@ void closeClientConnection(int client_socket){
 		} else{
 			//Se o usuario a ser removido é o adm, promovemos outro adm
 			if(channel[name_channel].socket_adm == cl->socket){
-				//Adiciona o socket do segundo usuario como adm
-				channel[name_channel].socket_adm = channel[name_channel].cl.front()->socket;
-				channel[name_channel].cl.front()->adm = true;
+				//Caso o adm tenha sido removido:
+				if(channel[name_channel].cl.size() == 0){
+					//Se a sala se tornou vazia o adm é retirado
+					channel[name_channel].socket_adm = -1;
+				} else{
+					//Adiciona o socket do segundo usuario como adm
+					channel[name_channel].socket_adm = channel[name_channel].cl.front()->socket;
+					channel[name_channel].cl.front()->adm = true;
+				}
+				
 			}
 		}
 	}
+	//Envia ao cliente que foi removido que sua conexao foi finalizada
+	send_message_client(client_socket, string("kicked"));
 		
 	//Fecha conexao do socket do cliente
 	close(cl->socket);
-	//Fecha thread do cliente
+	//Finaliza a thread do cliente
 	cl->th.detach();
 
 	//Remoção do cliente da lista geral de clientes
@@ -214,7 +201,9 @@ void closeClientConnection(int client_socket){
 	clients_mtx.unlock();
 }
 
-
+//client_socket: numero de socket do cliente
+//name: novo apelido do cliente
+//Muda o nome do cliente para outro 
 void setClientName(int client_socket, char name[]){
 	lock_guard<mutex> guard(clients_mtx);
 	for (auto it = clients.begin(); it != clients.end(); it++) {
@@ -227,6 +216,8 @@ void setClientName(int client_socket, char name[]){
     }
 }
 
+//client_socket: numero de socket do cliente
+//Retorna o cliente que corresponde ao numero de socket enviado
 Clients *return_client(int client_socket){
 	lock_guard<mutex> guard(clients_mtx);
 	for (auto it = clients.begin(); it != clients.end(); it++) {
@@ -237,6 +228,9 @@ Clients *return_client(int client_socket){
 	return nullptr;
 }
 
+//client_socket: numero de socket do cliente
+//message: mensagem a ser enviada
+//Envia uma mensagem ao cliente correspondente àquele socket
 void send_message_client(int client_socket, string message){
 	char *msg = (char *) malloc(message.length()+1);
 	strcpy(msg, message.c_str());
@@ -245,7 +239,7 @@ void send_message_client(int client_socket, string message){
     for(int x = 0; x < qtd_messages; x++){
         
 		int bytes_sent = 0;
-		//Envia a mensagem 5 vezes ou envia ate q o cliente a receba
+		//Envia a mensagem 5 vezes ou a envia ate q o cliente receba
 		for(int y = 0; y < 5 && bytes_sent <= 0; y++){	
 			bytes_sent = send(client_socket,msg+4096*x,4096,0);
 		}	
@@ -257,14 +251,18 @@ void send_message_client(int client_socket, string message){
     } 
 }
 
-
+//client_socket: numero de socket do cliente
+//message: mensagem a ser enviada
+//fromServer: Determina se será uma mensagem enviada pelo servidor ou pelo usuario
+//Função de broadcast da mensagem:
+//Todos que estao no mesmo canal que o dono do socket recebem a mensagem
 void broadcast_Message(int client_socket, string message, bool fromServer){
 	Clients *actual_client;
 	actual_client = return_client(client_socket);
 	
 	lock_guard<mutex> guard(clients_mtx);
 	for (auto it = clients.begin(); it != clients.end(); it++) {
-		if(it->name_channel == actual_client->name_channel && it->name != actual_client->name && actual_client->muted == false){
+		if(it->name_channel == actual_client->name_channel && /*it->name != actual_client->name && */actual_client->muted == false){
 			string msg;
 			if(fromServer == false){
 				msg += actual_client->name;
@@ -281,6 +279,8 @@ void broadcast_Message(int client_socket, string message, bool fromServer){
     }
 }
 
+//name: nome do cliente
+//Retorna o cliente correspondente ao nome enviado
 Clients *return_client(string name){
 	lock_guard<mutex> guard(clients_mtx);
 	for (auto it = clients.begin(); it != clients.end(); it++) {
@@ -291,32 +291,78 @@ Clients *return_client(string name){
 	return nullptr;
 }
 
-
+//client_socket: numero de socket vinculado ao cliente
+//message: mensagem enviada pelo cliente
+//Função que determina o comportamento do servidor dado a mensagem que o usuario enviou
 void command_decide(int client_socket, char message[MAX_LEN]){
 
-	//Verificar se é um comando, verificando o caractere inicial ou verificando que a string é muito grande pra ser um comando
+	//Lida com mensagens nao-comandos do usuario
 	if(message[0] != '/' || strlen(message) > 30){
 		Clients *cl = return_client(client_socket);
-		if(cl == NULL || cl->name_channel == "") return;
+		//Verifica se o usuario se encontra em um servidor
+		//caso contrario envia uma mensagem ao usuario de mensagem invalida
+		if(cl == NULL) return;
+		if(cl->name_channel == ""){
+			send_message_client(client_socket, string("Digite um comando válido\n"));
+			return;
+		}
+		//Envia ao usuario que ele se encontra mutado
+		if(cl->muted == true){
+			string msg = "Você esta mutado\n";
+			send_message_client(client_socket, msg);
+		} 
 		broadcast_Message(client_socket, string(message), false);
 		return;
 	}
-
+	//Pega a primeira palavra da mensagem, ou seja, o comando (/kick, /join ...)
 	char *pch; 
     pch = strtok(message, " ");
 	char firstWord[20];
 	strcpy(firstWord, pch);
-
+	//quit: finaliza a conexao do usuario
 	if(strcmp(firstWord, "/quit") == 0){
 		closeClientConnection(client_socket);
 		return;
 	}
+	//ping: retorna ao usuario uma mensagem /pong
 	if(strcmp(firstWord, "/ping") == 0){
 		string msg = "Server: pong\n";
 		send_message_client(client_socket, msg);
 		Clients *cl = return_client(client_socket);
 		msg = cl->name + ": " + "/ping\n";
 		printMessage(msg);
+		return;
+	}
+	//retorna ao usuario uma lista de comandos que podem ser executados no servidor
+	if(strcmp(firstWord, "/help") == 0){
+	
+		string msg = "\n->Comandos habilitados:\n";
+		msg += " -Usuários Comuns:\n";
+		msg += "  /ping                       - solicita uma mensagem /pong de resposta do servidor\n";
+		msg += "  /join nomeCanal             - se junta a um canal de nome enviado\n";
+		msg += "  /nickname apelidoDesejado:  - muda seu apelido inicial para outro\n";
+		msg += "  /bigMessage                 - envia uma mensagem de mais de 4096 caracteres ao servidor\n";
+		msg += "  /whoAmI                     - exibe ao cliente suas informações pessoais\n\n";
+		msg += " -Usuários administradores:\n";
+		msg += "  /kick nomeUsuario           - finaliza a conexão de um usuário especificado\n";
+		msg += "  /mute nomeUsuario           - impede o usuário especificado no mesmo canal de enviar mensagens no canal\n";
+		msg += "  /unmute nomeUsuario         - retira o mute de um usuário do mesmo canal\n";
+		msg += "  /whois nomeUsuario          - retorna o endereço ip do usuario no mesmo canal\n";
+		msg += "  /whoAmI                     - exibe ao cliente suas informações pessoais\n\n";
+		send_message_client(client_socket, msg);
+		return;
+	}
+	if(strcmp(firstWord, "/whoAmI") == 0){
+		Clients *cl = return_client(client_socket);
+		string msg = "\n==Informações Pessoais==\n";
+		msg += "Nome:         " + cl->name + "\n";
+		msg += "Canal atual:  " + cl->name_channel + "\n";
+		msg += "IP:           " + cl->ip + "\n";
+		string aux = cl->muted ? "True" : "False";
+		msg += "muted:        " + aux + "\n";
+		aux = cl->adm ? "True" : "False";
+		msg += "ADM:          " + aux + "\n\n";
+		send_message_client(client_socket, msg);
 		return;
 	}
 
@@ -412,13 +458,21 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		//Fecha a conexao do cliente
 		if(actual_Client->name_channel == target_Client->name_channel && actual_Client->adm == true){
 			closeClientConnection(target_Client->socket);
+			string msg = "O usuario " + target_Client->name + " foi kickado\n";
+			send_message_client(client_socket, msg);
 		}
 		return;
 	}
 	if(strcmp(firstWord, "/mute") == 0){
 		if(actual_Client->adm == true){
 			Clients *target_Client = return_client(string(secondWord));
+			if(target_Client == NULL){
+				send_message_client(client_socket, string("Usuário nao existe\n"));
+				return;
+			} 
 			target_Client->muted = true;
+			string msg = "O usuario " + target_Client->name + " foi mutado\n";
+			send_message_client(client_socket, msg);
 		}
 		return;
 	}
@@ -426,6 +480,8 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		if(actual_Client->adm == true){
 			Clients *target_Client = return_client(string(secondWord));
 			target_Client->muted = false;
+			string msg = "O usuario " + target_Client->name + " foi desmutado\n";
+			send_message_client(client_socket, msg);
 		}
 		return;
 	}
@@ -442,10 +498,20 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		}
 		return;
 	}
+
 	
+}
+//name: apelido anterior que sera utilizado para gerar o novo apelido
+//Gera um novo apelido combinando o apelido anterior com uma sequencia de numeros
+string generate_nickName(string name){
+	int random = 1 + (rand() % 1001);
+	string new_name = name + to_string(random);
+	return new_name;
 }
 
 
+//client_socket: numero de socket do cliente
+//Função que lida com as mensagens enviadas pelo cliente 
 void handle_client(int client_socket)
 {	
 	//Recebe o nome apos o usuario se conectar ao servidor
@@ -454,13 +520,23 @@ void handle_client(int client_socket)
 	if(bytes_received <= 0)
 		return;
 	
-	//Define o nome do usuario
-	setClientName(client_socket, name);
+	//Cria um novo apelido caso o anterior ja exista no servidor
+	string new_name = string(name);
+	while(return_client(new_name) != NULL){
+		new_name = generate_nickName(new_name);
+	}
 
-	//Mensagem de resposta do servidor 
-	// string welcome = "\tBem-vindo ao servidor!!\n";
-	// send_message_client(client_socket, welcome);
-	
+	char aux[MAX_LEN];
+	strcpy(aux, new_name.c_str());
+
+	if(strcmp(name, new_name.c_str()) != 0){
+		send_message_client(client_socket, string("Apelido ja existente, seu apelido será " + new_name));
+	}
+	//Define o nome do usuario
+	setClientName(client_socket, aux);
+	string msg = "\n\tBem vindo ao servidor " + string(aux) + "\n\n";
+	send_message_client(client_socket, msg);
+
 	while(1){
 		char message[MAX_LEN];
 		int bytes_received = recv(client_socket,message,sizeof(message),0);
