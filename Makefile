@@ -2,8 +2,8 @@ all: server.cpp client.cpp
 	g++ server.cpp -o server
 	g++ client.cpp -o client
 
-server: server
+run_server: server
 	./server
 
-client: client
+run_client: client
 	./client
