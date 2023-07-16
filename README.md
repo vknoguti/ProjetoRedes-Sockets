@@ -5,7 +5,7 @@
    
 ## Instalação
 - Compile os arquivos server.cpp e o client.cpp:
-  - Utilize o comando 'make all'(sem as aspas)
+  - Utilize o comando 'make all'(sem as aspas) para isso
 
 ## Execução
 - Abra um terminal e execute 'make run_server'(sem as aspas) para o servidor
