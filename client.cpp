@@ -9,10 +9,6 @@
 #include <thread>
 #include <signal.h>
 #include <mutex>
-#include <chrono>
-
-// #include <ncurses.h>
-
 
 #define MAX_LEN 4096
 
@@ -39,43 +35,39 @@ void recv_message(int client_socket);
 struct sockaddr_in create_socket(){
     struct sockaddr_in client;
 	client.sin_family=AF_INET;
-	client.sin_port=htons(10000); // Port no. of server
+	client.sin_port=htons(9997); // Port no. of server
 	client.sin_addr.s_addr=INADDR_ANY;
 	bzero(&client.sin_zero,0);
     return client;
 }
-
+//Seta o socket
 void set_socket(){
     if((client_socket=socket(AF_INET,SOCK_STREAM,0))==-1)
 	{
-		//Imprimi socket + erro do socket
-		perror("socket: ");
+		//Imprimi que houve erro na criação do socket
+		cout << "Criação do socket não foi concluída";
 		exit(-1);
     }
 }
-
-void connect_socket(struct sockaddr_in client){
+//Conecta ao socket
+int connect_socket(struct sockaddr_in client){
     if((connect(client_socket,(struct sockaddr *)&client,sizeof(struct sockaddr_in)))==-1)
 	{
-		perror("connect: ");
-		exit(-1);
+		return -1;
 	}
+    return 1;
 }
 
 struct sockaddr_in client = create_socket(); 
-
 int main()
-{
-  
-    set_socket();
-    //connect_socket(client);
+{   
 
+    set_socket();
 
     //Create signal dealer of ctrl+c interruption
     signal(SIGINT, catch_ctrl_c);
     
-
-   
+    //Threads de leitura da mensagem e de envio para o servidor
 	thread t1(send_message, client_socket);
 	thread t2(recv_message, client_socket);
 
@@ -87,8 +79,6 @@ int main()
 	if(t_recv.joinable())
 	    t_recv.join();
 
-
-			
 	return 0;
 }
 
@@ -98,7 +88,7 @@ void catch_ctrl_c(int signal)
     cout << "Operção nao permitida" << endl;    	
 }
 
-
+//Função getline dinamico
 char *getLine(){
     char aux;
     char *line = NULL;
@@ -108,10 +98,10 @@ char *getLine(){
         
         line = (char *) realloc(line, cont * sizeof(char));
         if(aux == '\n'){
-            line[cont-1] = '\0'; 
+            line[cont-1] = '\0';
         } else  if(aux == EOF){
             line = (char *) realloc(line, 1 * sizeof(char));
-            line[0] = '\0';
+            line[0] = '\n';
             return line;
         } else
             line[cont-1] = aux;
@@ -121,48 +111,60 @@ char *getLine(){
     return line;
 }
 
+//Finaliza o socket do cliente
 void close_socket(){
     exit_flag=true;
+    connected = false;
 	t_send.detach();
 	t_recv.detach();
-    cout << "Conexão com o servidor finalizada" << endl;
+    cout << "Conexão com o servidor finalizada\n" << endl;
     fflush(stdout);
 }
 
-
 void command_decide(char *input){
+    if(exit_flag)
+			return;
 
+    //Caso o cliente esteja conectado com o servidor
     if(connected == false){
         if(strcmp(input, "/connect") == 0){
-            connect_socket(client);
+            //Realiza a tentativa de conexao com o servidor
+            if(connect_socket(client) == -1){
+                cout << "error: Connection refused\n";
+                return;
+            }
             cout << "\tConectado ao servidor!!!" << endl;
             connected = true;
-            //Send name after connect to server
-            char name[MAX_LEN];
+            //Envia o nome apos a conexao sucedida com o servidor
+            
 	        cout << "Digite seu apelido: ";
-	        cin.getline(name,MAX_LEN);
-            if(strlen(name) != 0)
+            char *name = getLine();
+            //Verifica se o usuario pressinou CTRL + D
+            if(name[0] != '\n')
 	            send(client_socket,name,sizeof(name),0);
-        } else if(strlen(input) == 0 || strcmp(input, "/quit") == 0){
-            char msg[MAX_LEN] = "/quit\0";
-            send(client_socket,msg,MAX_LEN,0);
-            close_socket();
+            else
+                close_socket();
+            //Finaliza o socket com o servidor caso o cliente digite /quit ou pressione CTRL + D
+        } else if(input[0] == '\n' || strcmp(input, "/quit") == 0){
+            if(exit_flag != true) close_socket();
+            else return;
         } else{
-            string msg = "Conexão não realizada\nComando Inválido\n";
-            cout << msg;
+            cout << "Comando Inválido\n";
         }
+    //Caso o cliente nao esteja conectado com o servidor
     } else{
         if(strcmp(input, "/connect") == 0){
             cout << "Cliente ja conectado ao servidor" << endl;
             return;
         }
-        //Se for 0 significa que o usuario pressionou CTRL+D
-        else if(strlen(input) == 0 || strcmp(input, "/quit") == 0){
+        //Finaliza a conexao com o servidor caso o cliente digite /quit ou pressione CTRL + D
+        else if(input[0] == '\n' || strcmp(input, "/quit") == 0){
             char msg[MAX_LEN] = "/quit\0";
             send(client_socket,msg,MAX_LEN,0);
             close_socket();
+        //Função para testar o envio de mensagens com corpo maiores que 4096 caracteres
         } else if(strcmp(input, "/bigMessage") == 0){
-            // Realiza o envio de varios pacotes com 1 mesma mensagem
+            // Realiza o envio da mensagem em varios pacotes de tamanho maximo de 4096 caracteres
             char *bigMessage = (char *)malloc(9000);
             for(int x = 0; x < 9000; x++){
                 if(x % 2 == 0)
@@ -172,14 +174,13 @@ void command_decide(char *input){
             }
             bigMessage[8999] = '\0';
 
-            //Envia todas as demais operações, alem das mensagens
             int qtd_messages = ceil((strlen(bigMessage)/4096.0));
             for(int x = 0; x < qtd_messages; x++){
                 send(client_socket,bigMessage+4096*x,4096,0);
             }   
             free(bigMessage);
         } else{
-            // Envia todas as demais operações, alem das mensagens
+            // Envia as mensagens comuns ou operações ao servidor
             int qtd_messages = ceil((strlen(input)/4096.0));
             for(int x = 0; x < qtd_messages; x++){
                 send(client_socket,input+4096*x,4096,0);
@@ -187,46 +188,32 @@ void command_decide(char *input){
         }
     }
 }
-
+//Função que imprime as opções disponiveis de comandos ao cliente antes da conexao
 void print_options(){
-    
-    cout << " - Comandos:" << endl;
-    cout << "  - /Pré-conexao:" << endl;
-    cout << "   - /connect: Se conecta ao servidor, caso ainda nao esteja conectado" << endl << endl;
-    
-    cout << "  - /Pós-conexao:" << endl;
-    cout << "   - /Usuários comuns:" << endl;
-    cout << "    - /join nomeCanal: se junta a um canal de nome enviado" << endl;
-    cout << "    - /nickname apelidoDesejado: muda o apelido inicial para outro" << endl;
-    cout << "    - /ping: solicita uma mensagem /pong de resposta do servidor" << endl << endl;
-
-    cout << "   - /Usuários administradores:" << endl;
-    cout << "    - /kick nomeUsuario: finaliza a conexão de um usuário especificado" << endl;
-    cout << "    - /mute nomeUsuario: impede um determinado usuário de enviar mensagens no canal" << endl;
-    cout << "    - /unmute nomeUsuario: retira o mute do usuário" << endl;
-    cout << "    - /whois nomeUsuario: retorna o endereço ip do usuário" << endl << endl;
-       
+    string msg = "\n->Comandos habilitados:\n";
+    msg += "  /connect: Realiza a conexão com o servidor\n\n";
+    cout << msg;
 }
 
-
+//client_socket: numero de socket do cliente
 //Função que controla o envio de mensagens para o servidor
 void send_message(int client_socket)
 {
     print_options();
 	while(1)
-	{   
-        fflush(stdout);
-        cout << "Você : ";
+	{      
         char *input = getLine();   
-        command_decide(input);
-        
         if(exit_flag)
-            return;
-        //std::chrono::milliseconds foo(1000);
-        this_thread::sleep_for(chrono::milliseconds(200));
+			return;
+        
+        command_decide(input);
+        free(input);
+         if(exit_flag)
+			return;
 	}		
 }
 
+//client_socket: numero de socket do cliente
 //Função que controla o recebimento de mensagens do servidor
 void recv_message(int client_socket)
 {
@@ -234,10 +221,16 @@ void recv_message(int client_socket)
 	{
         if(exit_flag)
 			return;
-
         char message[MAX_LEN];
+      
         int bytes_received=recv(client_socket,message,sizeof(message),0);
-		if(bytes_received == 0){
+        if(bytes_received == 0){
+            close_socket();
+            return;
+        }
+        if(strcmp(message, "kicked") == 0){
+            cout << "Você foi kickado\n" << endl;
+            fflush(stdout);
             close_socket();
             return;
         }
