@@ -5,6 +5,9 @@
 |Vinicius Kazuo Fujikawa Noguti | 11803121|
 |Bruno Berndt Lima              | 12542550|
 |Thiago Shimada                 | 12691032|
+
+[Link do vídeo](www.google.com)
+
 ## Softwares utilizados:
  - Linux: Ubuntu 20.04.3 LTS
  - g++ 9.3.0
