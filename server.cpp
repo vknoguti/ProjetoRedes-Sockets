@@ -529,9 +529,7 @@ void handle_client(int client_socket)
 	
 	//Cria um novo apelido caso o anterior ja exista no servidor
 	string new_name = string(name);
-
 	while(return_client(new_name) != NULL){
-		printMessage(new_name + "\n");
 		new_name = generate_nickName(new_name);
 	}
 
