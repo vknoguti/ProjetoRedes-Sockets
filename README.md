@@ -6,7 +6,7 @@
 |Bruno Berndt Lima              | 12542550|
 |Thiago Shimada                 | 12691032|
 
-[Link do vídeo](www.google.com)
+[Link do vídeo](https://www.youtube.com/watch?v=ZfYtUwVZXrg)
 
 ## Softwares utilizados:
  - Linux: Ubuntu 20.04.3 LTS
