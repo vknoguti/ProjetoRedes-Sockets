@@ -440,7 +440,12 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 	if(strcmp(firstWord, "/nickname") == 0){
 		string old_nickname = actual_Client->name;
 		string new_nickname = string(secondWord);
-		
+
+		//Verifica se o nick ja existe
+		if(return_client(new_nickname) != NULL){
+			send_message_client(client_socket, string("O nickname digitado ja existe\n"));
+			return;
+		}
 		//Modifica o apelido do usuario que fez o pedido
 		actual_Client->name = new_nickname;
 
@@ -457,7 +462,7 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		send_message_client(client_socket, msg);
 		return;
 	}
-	
+
 	//Comandos que dependem que todos estejam na mesma sala
 	if(target_Client->name_channel != actual_Client->name_channel) return;
 	if(strcmp(firstWord, "/kick") == 0){
