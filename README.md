@@ -38,7 +38,7 @@ make run_client
 - /whois nomeUsurio - Retorna o endereço IP do usuário apenas para o administrador
 
 ## Comandos Extras implementados
-- /whoAmI - Exibe os dados para a pessoa que realizou o comando
+- /whoami - Exibe os dados para a pessoa que realizou o comando
 - /help - Exibe a lista de comandos
-- /bigMessage - Envia uma mensagem de 9000 caracteres no canal conectado. A mensagem é dividida em blocos de 4096 caracteres.
+- /bigmessage - Envia uma mensagem de 9000 caracteres no canal conectado. A mensagem é dividida em blocos de 4096 caracteres.
 
