@@ -116,7 +116,7 @@ void command_decide(char *input){
             char *name = getLine();
             //Verifica se o usuario pressinou CTRL + D
             if(name[0] != '\n')
-	            send(client_socket,name,sizeof(name),0);
+	            send(client_socket,name,MAX_LEN,0);
             else
                 close_socket();
             //Finaliza o socket com o servidor caso o cliente digite /quit ou pressione CTRL + D
@@ -181,6 +181,7 @@ void send_message(int client_socket)
         char *input = getLine();   
         if(exit_flag)
 			return;
+        cout << input << endl;
         
         command_decide(input);
         free(input);

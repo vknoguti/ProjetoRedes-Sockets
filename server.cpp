@@ -511,7 +511,7 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 //name: apelido anterior que sera utilizado para gerar o novo apelido
 //Gera um novo apelido combinando o apelido anterior com uma sequencia de numeros
 string generate_nickName(string name){
-	int random = 1 + (rand() % 1001);
+	int random = 1 + (rand() % 11);
 	string new_name = name + to_string(random);
 	return new_name;
 }
@@ -529,12 +529,15 @@ void handle_client(int client_socket)
 	
 	//Cria um novo apelido caso o anterior ja exista no servidor
 	string new_name = string(name);
+
 	while(return_client(new_name) != NULL){
+		printMessage(new_name + "\n");
 		new_name = generate_nickName(new_name);
 	}
 
 	char aux[MAX_LEN];
 	strcpy(aux, new_name.c_str());
+	//printMessage(new_name);
 
 	if(strcmp(name, new_name.c_str()) != 0){
 		send_message_client(client_socket, string("Apelido ja existente, seu apelido será " + new_name));
