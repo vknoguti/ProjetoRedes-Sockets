@@ -457,6 +457,9 @@ void command_decide(int client_socket, char message[MAX_LEN]){
 		send_message_client(client_socket, msg);
 		return;
 	}
+	
+	//Comandos que dependem que todos estejam na mesma sala
+	if(target_Client->name_channel != actual_Client->name_channel) return;
 	if(strcmp(firstWord, "/kick") == 0){
 		//Fecha a conexao do cliente
 		if(actual_Client->name_channel == target_Client->name_channel && actual_Client->adm == true){
