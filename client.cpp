@@ -138,7 +138,7 @@ void command_decide(char *input){
             send(client_socket,msg,MAX_LEN,0);
             close_socket();
         //Função para testar o envio de mensagens com corpo maiores que 4096 caracteres
-        } else if(strcmp(input, "/bigMessage") == 0){
+        } else if(strcmp(input, "/bigmessage") == 0){
             // Realiza o envio da mensagem em varios pacotes de tamanho maximo de 4096 caracteres
             char *bigMessage = (char *)malloc(9000);
             for(int x = 0; x < 9000; x++){
