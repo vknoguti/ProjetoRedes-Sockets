@@ -181,7 +181,6 @@ void send_message(int client_socket)
         char *input = getLine();   
         if(exit_flag)
 			return;
-        cout << input << endl;
         
         command_decide(input);
         free(input);
