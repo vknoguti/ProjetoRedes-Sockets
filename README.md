@@ -1,4 +1,5 @@
 # ProjetoRedes-Sockets
+![Screenshot_1](https://github.com/user-attachments/assets/3ec9d43f-6786-4dd7-9422-af175587ae52)
 ## Membros
 |             Nome              | NUSP    |
 |:-----------------------------:|:-------:|
@@ -44,4 +45,7 @@ make run_client
 - /whoami - Exibe os dados para a pessoa que realizou o comando
 - /help - Exibe a lista de comandos
 - /bigmessage - Envia uma mensagem de 9000 caracteres no canal conectado. A mensagem é dividida em blocos de 4096 caracteres.
+
+
+
 
